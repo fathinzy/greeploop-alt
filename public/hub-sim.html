@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart Recycle Bin + QR Station</title>
+<style>
+:root{--bg:#0d1117;--panel:#141a23;--line:#3b4656;--ink:#e8edf3;--mute:#8b98a8;--amb:#ffb23e;--grn:#4be08a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:19px;margin:0}.mute{color:var(--mute);font-size:13px}
+svg{width:100%;height:auto;display:block}
+.f{fill:#182030;stroke:var(--line);stroke-width:1.1;stroke-linejoin:round}
+.t{fill:#212c3d}
+.d{fill:#101722}
+.thin{fill:none;stroke:var(--line);stroke-width:.9}
+.slot{fill:#04070a;stroke:var(--line);stroke-width:1}
+.slot.on{stroke:var(--amb);filter:url(#g)}
+.cover{fill:#2a3547;stroke:var(--line);stroke-width:1.1;stroke-linejoin:round}
+.beam{fill:var(--amb);opacity:.28;filter:url(#g)}
+.grid{display:grid;grid-template-columns:1fr 250px;gap:14px;align-items:start}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--amb)}button.h{border-style:dashed}button:disabled{opacity:.5}
+button.p{background:var(--amb);color:#1a1200;border-color:var(--amb);font-weight:600}
+.log{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
+.phone{background:var(--panel);border:2px solid var(--line);border-radius:26px;padding:16px 14px;min-height:330px}
+.phone h2{font-size:14px;margin:0 0 6px}
+.bal{font-size:30px;font-weight:700;color:var(--amb)}
+.ev{font-size:13px;padding:6px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+.ok{color:var(--grn)}
+.cams{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.cam{background:#05080c;border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;font-size:12px;color:var(--mute)}.cam .e{font-size:30px;line-height:1.2}.cam.bad{border-color:#ff5a4f;color:#ff8a80}.cam.good{border-color:var(--grn)}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}th{color:var(--mute);font-weight:500}.res{font-weight:700}.res.a{color:var(--grn)}.res.f{color:#ff6b5e}.logbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:12px;overflow-x:auto}
+
+body{margin:0}.wrap{max-width:1100px;margin:0 auto;padding:12px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:12px}
+.hn{font-size:18px;font-weight:700}.hm{color:var(--mute);font-size:13px}.tags{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11px;border:1px solid var(--line);border-radius:99px;padding:2px 9px;color:var(--mute)}
+.gpcard{text-align:right}.gpn{font-size:34px;font-weight:700;color:var(--amb);line-height:1.1}
+.main{display:grid;gap:12px;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-areas:"svg ctl" "log log"}
+.svgwrap{grid-area:svg}.ctl{grid-area:ctl}.logbox{grid-area:log;margin-top:0}
+body.auto .main{grid-template-areas:"svg log"}body.auto .ctl{display:none}
+@media(max-width:760px){.main,body.auto .main{grid-template-columns:1fr;grid-template-areas:"svg" "ctl" "log"}}
+.logbox{max-height:340px;overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="topbar">
+  <div><div class="hn" id="hn"></div><div class="hm" id="hm"></div><div class="tags"><span class="tag" id="tagmode"></span><span class="tag" id="taguser"></span></div></div>
+  <div class="gpcard"><div class="mute">GREEN POINTS (GP) · THIS SESSION</div><div class="gpn" id="gp">0</div><div class="mute" id="gpsub"></div></div>
+ </div>
+ <div class="main">
+  <div class="svgwrap">
+   <svg id="s" viewBox="0 0 640 440" role="img" aria-label="Isometric smart recycling bin with a QR link station"></svg>
+   <div class="log" id="log">Station ready. Waiting for a resident to scan.</div>
+  </div>
+  <div class="ctl" id="ctl">
+   <div class="row"><button class="p" id="scan">📱 Scan QR with phone (demo)</button><button id="end" disabled>End session</button></div>
+   <div class="mute">1 · Show your items to Cam 1 (only that bay's door opens)</div>
+   <div class="row" id="items"></div>
+   <div class="mute">2 · Put items into the open bay</div>
+   <div class="row"><button id="d1">Drop 1 item</button><button id="d10">Drop 10 items</button><button class="h" id="dw">10 incl. 1 wrong material</button><button id="dclose" disabled>Close door</button><button class="p" id="back" disabled>Take item back</button></div>
+   <div class="mute">Try to cheat:</div>
+   <div class="row"><button class="h" id="cs">🪨 Drop a stone</button><button class="h" id="cwtr">💧 Water-filled bottle</button></div>
+   <div class="cams"><div class="cam" id="c1"></div><div class="cam" id="c2"></div></div>
+   <div class="row"><button id="col" disabled>Collector: empty bays over 80%</button></div>
+  </div>
+  <div class="logbox"><b>Event log</b> <span class="mute" id="strk"></span><table><thead><tr><th>Time</th><th>Cam 1 (entry)</th><th>Cam 2 (inside)</th><th>Weight</th><th>Result</th></tr></thead><tbody id="lg"></tbody></table></div>
+ </div>
+</div>
+<script>
+const X=120,Y=50,H=84,sc=2,ox=285,oy=222,c=.866*sc,h=.5*sc;
+const P=(x,y,z)=>[ox+(x-y)*c,oy+(x+y)*h-z*sc];
+const pts=a=>a.map(p=>P(...p).map(n=>n.toFixed(1)).join(',')).join(' ');
+const poly=(a,cl,st)=>'<polygon points="'+pts(a)+'" class="'+cl+'"'+(st?' style="'+st+'"':'')+'/>';
+const box=(x0,y0,z0,x1,y1,z1)=>poly([[x1,y0,z0],[x1,y1,z0],[x1,y1,z1],[x1,y0,z1]],'f')+poly([[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]],'f')+poly([[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],'f t');
+const gL='matrix('+c+' '+h+' 0 '+sc+' '+(ox-Y*c)+' '+(oy+Y*h)+')';
+const gR=(xp,ym)=>'matrix('+c+' '+(-h)+' 0 '+sc+' '+(ox+(xp-ym)*c)+' '+(oy+(xp+ym)*h)+')';
+const BAYS=[{n:'PET',col:'#4fc3f7'},{n:'CAN',col:'#ffb23e'},{n:'PAPER',col:'#8bd96b'}];
+const IT=[
+ {n:'PET bottle',bay:0,kg:.03,add:9,t:3,e:'🧴'},
+ {n:'Aluminium can',bay:1,kg:.015,add:7,t:6,e:'🥫'},
+ {n:'Paper carton',bay:2,kg:.05,add:11,t:1,e:'🧃'},
+ {n:'Cardboard box',human:1,e:'📦'},
+ {n:'Old microwave',human:1,e:'🔌'}
+];
+const S={f:[34,12,52],open:-1,scan:-1,alert:false,tk:0,kg:0,busy:false,linked:false,conn:false,seed:7,wal:1240,feed:[],pulse:false,c2:-1,strikes:0,log:[],cf1:null,cf2:null,flag:false,door:false,t:15,tm:null,type:-1,ret:false,hold:null,tray:{n:0,h:[]}};
+const $=id=>document.getElementById(id);
+const Q=new URLSearchParams(location.search),MODE=Q.get('mode')==='auto'?'auto':'manual',HUBID=Q.get('hub')||'HUB-0001',HUBNAME=Q.get('name')||'Smart Hub',HUBLOC=Q.get('loc')||'';
+document.body.className=MODE;
+const ITEMIDS=['pet-bottle','aluminum-can','paper-carton'],GPKG=[5,15,3],UW=[.03,.015,.05];
+const post=m=>{try{parent.postMessage({src:'hub-sim',hubId:HUBID,...m},'*')}catch(e){}};
+S.seed=[...HUBID].reduce((a,c)=>a+c.charCodeAt(0),7);S.user=null;S.uid=null;
+function updTop(){$('hn').textContent=HUBNAME;$('hm').textContent=HUBID+(HUBLOC?' · '+HUBLOC:'');$('tagmode').textContent=MODE==='auto'?'AUTO SIMULATION':'MANUAL DEMO';$('taguser').textContent=S.linked?'Linked: '+(S.user||'Resident'):'No user linked';$('gp').textContent=S.tk.toLocaleString();$('gpsub').textContent=S.kg.toFixed(2)+' kg diverted · '+S.f.filter(v=>v>=80).length+' bay(s) at 80%+'}
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function qr(){const r=rng(S.seed*977+13);let s='';const q=1.15;
+ for(let j=0;j<21;j++)for(let i=0;i<21;i++){
+  const fd=(i<7&&j<7)?[i,j]:(i>13&&j<7)?[i-14,j]:(i<7&&j>13)?[i,j-14]:null;
+  const on=fd?Math.max(Math.abs(fd[0]-3),Math.abs(fd[1]-3))!==2:r()>.52;
+  if(on)s+='<rect x="'+(8.4+i*q).toFixed(2)+'" y="'+(-59.6+j*q).toFixed(2)+'" width="'+(q+.03)+'" height="'+(q+.03)+'" fill="#0b0f14"/>'}
+ return s}
+function render(){
+ const full=S.f.some(v=>v>=80),lk=S.linked;
+ let o='<defs><filter id="g" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+ o+='<polygon points="'+pts([[-28,-28,0],[165,-28,0],[165,60,0],[-28,60,0]])+'" fill="none" stroke="#202938" stroke-width="1"/>';
+ // data conduit bin->kiosk
+ o+='<polyline points="'+pts([[X+3,24,1],[134,24,1]])+'" fill="none" stroke="'+(lk?'#ffb23e':'#2a3442')+'" stroke-width="'+(S.pulse?4:2.2)+'"'+(lk?' filter="url(#g)"':'')+'/>';
+ // bin
+ o+=box(-3,-3,0,X+3,Y+3,6);
+ o+=box(0,0,6,X,Y,H);
+ [40,80].forEach(x=>{o+='<polyline class="thin" points="'+pts([[x,Y,6],[x,Y,H],[x,0,H]])+'"/>'});
+ // top: pod, solar, mast
+ o+=poly([[80,3,H+9],[116,3,H+9],[116,22,H+2],[80,22,H+2]],'f','fill:#0e2a4a');
+ for(let i=1;i<4;i++)o+='<polyline class="thin" points="'+pts([[80+i*9,3,H+9],[80+i*9,22,H+2]])+'" style="stroke:#2f5f95"/>';
+ o+='<polyline class="thin" points="'+pts([[80,12.5,H+5.5],[116,12.5,H+5.5]])+'" style="stroke:#2f5f95"/>';
+ o+='<polyline class="thin" points="'+pts([[6,8,H],[6,8,H+24]])+'"/><circle cx="'+P(6,8,H+24)[0]+'" cy="'+P(6,8,H+24)[1]+'" r="2.6" fill="'+(lk||full?'#ffb23e':'#3b4656')+'"'+(lk||full?' filter="url(#g)"':'')+'/>';
+ o+=box(46,3,H,74,20,H+14);
+ const L=P(60,20,H+7);
+ o+='<circle cx="'+L[0]+'" cy="'+L[1]+'" r="6.5" fill="#05080c" stroke="#3b4656"/><circle cx="'+L[0]+'" cy="'+L[1]+'" r="4" fill="'+(S.scan>=0?'#ffb23e':'#1c2633')+'"'+(S.scan>=0?' filter="url(#g)"':'')+'/>';
+ [[50,lk?'#4be08a':'#3b4656'],[70,S.alert||S.flag?'#ff5a4f':full?'#ffb23e':'#3b4656']].forEach(a=>{const p=P(a[0],20,H+11);o+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="1.8" fill="'+a[1]+'"/>'});
+ // slots
+ BAYS.forEach((b,i)=>{const x0=i*40+7,x1=i*40+33,on=(S.door&&S.type===i)||S.scan===i;
+  o+=poly([[x0-2,27,H],[x1+2,27,H],[x1+2,45,H],[x0-2,45,H]],'d','stroke:'+b.col+';stroke-width:1;opacity:.8');
+  o+=poly([[x0,29,H],[x1,29,H],[x1,43,H],[x0,43,H]],'slot'+(on?' on':''));
+  o+='<polyline class="thin" points="'+pts([[x0+2,36,H],[x1-2,36,H]])+'"/>';
+  const cp=P(i*40+20,32,H),a2=S.c2===i;o+='<circle cx="'+cp[0]+'" cy="'+cp[1]+'" r="2" fill="'+(a2?(S.flag?'#ff5a4f':'#4fe0ff'):'#26313f')+'"'+(a2?' filter="url(#g)"':'')+'/>';
+  const op=S.door&&S.type===i,z=op?H+11:H+.6;
+  o+=poly([[x0-1,28,z],[x1+1,28,z],[x1+1,44,z],[x0-1,44,z]],'cover',op?'opacity:.5':'');
+ });
+ if(S.scan>=0){const bx=S.scan*40+20;o+='<polygon class="beam" points="'+L[0]+','+L[1]+' '+pts([[bx-11,29,H],[bx+11,43,H]])+'"/>'}
+ if(full){const q=P(6,8,H+24);[7,13,19].forEach((r,i)=>{o+='<path d="M'+(q[0]-r)+','+(q[1]-r*.3)+' A'+r+','+r+' 0 0 1 '+(q[0]+r)+','+(q[1]-r*.3)+'" fill="none" stroke="#ffb23e" stroke-width="1.3" opacity="'+(.9-i*.25)+'" filter="url(#g)"/>'})}
+ // left face
+ o+='<g transform="'+gL+'" font-family="system-ui,sans-serif">';
+ o+='<rect x="4" y="-80" width="112" height="19" rx="2" fill="#04070a" stroke="'+(S.alert||S.flag?'#ff5a4f':'#3b4656')+'" stroke-width=".7"/>';
+ o+='<text x="8" y="-74.5" font-size="4" fill="#8b98a8">'+HUBID+' · GREEN POINTS</text>';
+ o+='<text x="8" y="-65" font-size="5.2" fill="'+(S.alert||S.flag?'#ff5a4f':lk?'#4be08a':'#ffb23e')+'">'+(S.ret?'TAKE ITEM BACK':S.flag?'FLAGGED: ITEM MISMATCH':S.alert?(lk?'USE STAFFED COUNTER':'SCAN QR FIRST'):lk?(S.door?BAYS[S.type].n+' DOOR OPEN · '+S.t+'s'+(S.tray.n+S.tray.h.length?' · '+(S.tray.n+S.tray.h.length)+' ITEMS':''):S.busy&&S.c2>=0?'DOOR CLOSED · CAM 2 SCANNING':'SHOW ITEM TO CAM 1'):'SCAN QR TO START')+'</text>';
+ o+='<text x="112" y="-65" font-size="9" font-weight="700" text-anchor="end" fill="#ffb23e">+'+S.tk+'</text>';
+ BAYS.forEach((b,i)=>{const u=i*40+5,hot=S.f[i]>=80,n=Math.round(S.f[i]/10);
+  o+='<rect x="'+u+'" y="-58" width="30" height="46" rx="2" fill="#1d2838" stroke="#3b4656" stroke-width=".7"/>';
+  o+='<rect x="'+u+'" y="-58" width="30" height="6.5" rx="2" fill="'+b.col+'" opacity=".92"/><text x="'+(u+15)+'" y="-53.4" font-size="4.4" font-weight="700" text-anchor="middle" fill="#0b0f14">'+b.n+'</text>';
+  o+='<rect x="'+(u+3)+'" y="-23" width="13" height="2.2" rx="1" fill="#6b7a8e"/>';
+  o+='<text x="'+(u+3)+'" y="-38" font-size="7" font-weight="700" fill="'+(hot?'#ffb23e':'#e8edf3')+'">'+Math.round(S.f[i])+'%</text>';
+  for(let k=0;k<10;k++){const on=k<n;o+='<rect x="'+(u+21)+'" y="'+(-17-(k+1)*3.4)+'" width="6" height="2.5" rx=".6" fill="'+(on?(hot?'#ff9b2e':b.col):'#2a3442')+'"'+(on&&hot?' filter="url(#g)"':'')+'/>'}
+  for(let k=0;k<3;k++)o+='<line x1="'+(u+4)+'" y1="'+(-10.5+k*1.6)+'" x2="'+(u+26)+'" y2="'+(-10.5+k*1.6)+'" stroke="#3b4656" stroke-width=".5"/>';
+ });
+ o+='</g>';
+ // right face
+ o+='<g transform="'+gR(X,Y)+'" font-family="system-ui,sans-serif">';
+ for(let k=0;k<7;k++)o+='<line x1="12" y1="'+(-76+k*3.2)+'" x2="38" y2="'+(-76+k*3.2)+'" stroke="#3b4656" stroke-width=".7"/>';
+ o+='<rect x="8" y="-52" width="34" height="38" rx="2" fill="#1d2838" stroke="#3b4656" stroke-width=".7"/><rect x="32" y="-36" width="3" height="8" rx="1" fill="#6b7a8e"/><circle cx="14" cy="-46" r="1.3" fill="#6b7a8e"/><circle cx="14" cy="-20" r="1.3" fill="#6b7a8e"/>';
+ o+='<text x="25" y="-10" font-size="3.6" text-anchor="middle" fill="#8b98a8">SERVICE · IoT · 4G</text></g>';
+ // kiosk
+ o+=box(134,4,0,150,44,70)+box(132,2,70,152,46,75);
+ o+='<g transform="'+gR(150,44)+'" font-family="system-ui,sans-serif">';
+ o+='<rect x="2" y="-70" width="36" height="66" rx="3" fill="#06090d" stroke="'+(lk?'#4be08a':'#3b4656')+'" stroke-width=".8"'+(lk?' filter="url(#g)"':'')+'/>';
+ o+='<text x="20" y="-65" font-size="4" font-weight="700" text-anchor="middle" fill="#ffb23e">SCAN TO LINK</text>';
+ o+='<rect x="5.5" y="-62" width="29" height="29" rx="1.5" fill="#f2f5f8"/>'+qr();
+ o+='<text x="20" y="-28" font-size="3.4" text-anchor="middle" fill="#8b98a8">or tap phone · NFC</text>';
+ o+='<rect x="8" y="-22" width="24" height="3" rx="1.5" fill="'+(S.conn?'#ffb23e':lk?'#4be08a':'#1c2633')+'"'+(lk||S.conn?' filter="url(#g)"':'')+'/>';
+ o+='<text x="20" y="-10" font-size="4.6" font-weight="700" text-anchor="middle" fill="'+(lk?'#4be08a':'#8b98a8')+'">'+(S.conn?'LINKING…':lk?'SESSION LIVE':'READY')+'</text></g>';
+ $('s').innerHTML=o;
+ $('col').disabled=!full;$('scan').disabled=lk||S.conn;$('end').disabled=!lk||S.door||S.busy;const act=S.door&&!S.busy&&!S.ret;['d1','d10','dw','cs','cwtr'].forEach(k=>$(k).disabled=!act);$('dclose').disabled=!S.door||S.ret;$('back').disabled=!S.ret;logs();
+ phone();
+}
+function phone(){updTop()}
+$('items').innerHTML=IT.map((t,i)=>'<button class="'+(t.human?'h':'')+'" data-i="'+i+'">'+t.e+' '+t.n+'</button>').join('');
+$('items').onclick=ev=>{const b=ev.target.closest('button');if(b)drop(+b.dataset.i)};
+const say=t=>$('log').textContent=t;
+$('scan').onclick=()=>{S.conn=true;say('Phone scanned the QR. Pairing with the bin…');render();
+ setTimeout(()=>{S.conn=false;S.linked=true;if(!S.uid)S.user=S.user||'Demo resident';S.tk=0;S.kg=0;S.feed=[];S.strikes=0;S.type=-1;say('Linked. Show your items to Cam 1 and only the matching door will open.');render()},1300)};
+$('end').onclick=()=>{const t=S.tk;closeDoor('session ended');post({type:'end'});S.uid=null;S.user=null;S.linked=false;S.seed++;S.tk=0;say('Session ended'+(t?': '+t+' GP credited to the linked account.':'.')+' New QR generated for the next resident.');render()};
+function drop(i){
+ if(S.busy)return;const t=IT[i];
+ if(!S.linked){S.alert=true;say('Door locked: scan the QR on the station to start a session first.');render();setTimeout(()=>{S.alert=false;render()},2200);return}
+ if(S.ret){say('Please take the returned item back first.');return}
+ if(t.human){S.alert=true;say(t.n+' is not an AI-stream item. Take it to the staffed counter; the operator credits it to your linked app.');render();setTimeout(()=>{S.alert=false;render()},2500);return}
+ if(S.door&&S.type!==t.bay){say('The '+BAYS[S.type].n+' door is open. Close it before scanning a different type.');return}
+ if(S.door){S.t=15;say('The '+BAYS[t.bay].n+' door is already open.');render();return}
+ if(S.f[t.bay]>=100){say(BAYS[t.bay].n+' bay is full. Collection already requested.');return}
+ S.busy=true;S.scan=t.bay;S.flag=false;S.cf2=null;say('Cam 1 scanning your item…');render();
+ setTimeout(()=>{S.cf1={e:t.e,l:t.n+' · '+BAYS[t.bay].n+' stream',ok:1};S.scan=-1;S.type=t.bay;S.busy=false;openDoor();say('Cam 1 identified '+t.n+'. Only the '+BAYS[t.bay].n+' door is open. Put your items in; it closes after 15 s of no activity.')},1000);
+}
+function openDoor(){S.door=true;S.t=15;clearInterval(S.tm);S.tm=setInterval(()=>{S.t--;if(S.t<=0)closeDoor('auto-closed: no activity for 15 s');else render()},1000);render()}
+function closeDoor(why){clearInterval(S.tm);if(!S.door)return;const ty=S.type;S.door=false;S.type=-1;
+ if(S.ret){S.ret=false;S.flag=false;S.strikes++;addLog('—',S.hold.n,'—','FLAGGED','not taken back · tray held for operator');S.hold=null;S.tray={n:0,h:[]};S.c2=-1}
+ const has=S.tray.n+S.tray.h.length>0;
+ addLog('—','Tray: '+(S.tray.n+S.tray.h.length)+' item(s)','—','DOOR CLOSED',why);
+ say('Door closed ('+why+').'+(has?' Cam 2 is scanning…':''));render();
+ if(has)scanTray(ty)}
+$('dclose').onclick=()=>closeDoor('closed by user');
+$('d1').onclick=()=>dropN(1,'ok');$('d10').onclick=()=>dropN(10,'ok');$('dw').onclick=()=>dropN(10,'wrong');
+$('cs').onclick=()=>dropN(1,'stone');$('cwtr').onclick=()=>dropN(1,'water');
+$('back').onclick=()=>{if(!S.ret)return;S.ret=false;S.flag=false;S.c2=-1;addLog('—',S.hold.n,'—','RETURNED','user took it back');S.hold=null;S.tray.h=[];S.t=15;say('Item taken back. Put more items in, or close the door so Cam 2 can rescan.');render()};
+function dropN(n,kind){
+ if(S.busy||!S.door||S.ret)return;
+ const ty=S.type,oth=IT[(ty+1+Math.floor(Math.random()*2))%3];S.t=15;
+ if(kind==='ok')S.tray.n+=n;
+ else if(kind==='wrong'){S.tray.n+=n-1;S.tray.h.push({n:oth.n,e:oth.e,w:Math.round(oth.kg*1000),mix:1})}
+ else S.tray.h.push(kind==='stone'?{n:'Stone',e:'🪨',w:420}:kind==='water'?{n:'Bottle with liquid',e:'💧',w:510}:{n:'Foreign object',e:'❓',w:0});
+ const c=S.tray.n+S.tray.h.length;S.cf2=null;
+ say(c+' item'+(c>1?'s':'')+' on the tray. Cam 2 scans only after the door closes (15 s idle, or press Close door).');render();
+}
+function scanTray(ty){
+ const b=IT[ty],T=S.tray,hs=T.h,acc=T.n;
+ S.busy=true;S.c2=ty;S.cf2=null;render();
+ setTimeout(()=>{
+  const held=hs[0]||null,wexp=Math.round(acc*b.kg*1000),wact=Math.round(wexp*(.97+Math.random()*.06))+hs.reduce((a,h)=>a+h.w,0);
+  const lab=(acc?acc+' × '+b.n:'')+(acc&&held?' + ':'')+(held?hs.length+' × '+held.n:'');
+  S.cf2={e:b.e.repeat(acc)+hs.map(h=>h.e).join(''),l:lab+' · '+wact+' g',ok:held?0:1};
+  if(held){
+   S.flag=true;S.ret=true;S.hold=held;S.type=ty;if(!held.mix)S.strikes++;
+   addLog(b.n+' stream',lab+' ✗',wact+' g (exp '+wexp+')','FLAGGED','0 tokens until taken back');
+   openDoor();say('Cam 2 found a different material: '+held.n+'. The door has re-opened. Please take it back, then close the door to rescan.');
+   if(S.strikes>=3){S.ret=false;S.hold=null;S.tray={n:0,h:[]};closeDoor('session suspended');S.linked=false;S.seed++;S.tk=0;say('3 flagged attempts: session suspended and the operator has been alerted.')}
+  }else{
+   const tok=Math.round(GPKG[ty]*UW[ty]*acc);S.tk+=tok;post({type:'drop',itemId:ITEMIDS[ty],quantity:acc,weight:wact/1000});S.kg+=wact/1000;S.feed.unshift({n:acc+' × '+b.n,t:tok});S.feed=S.feed.slice(0,4);
+   S.f[ty]=Math.min(100,S.f[ty]+acc*b.add*.6);S.pulse=true;S.tray={n:0,h:[]};S.c2=-1;
+   addLog(b.n+' stream',lab+' ✓',wact+' g (exp '+wexp+')','APPROVED','+'+tok);
+   say('Cam 2 confirmed '+lab+'. +'+tok+' GP credited to the linked account. Show Cam 1 your next items to open a door.');
+  }
+  S.busy=false;render();setTimeout(()=>{S.pulse=false;render()},500)
+ },1400);
+}
+function addLog(d,c,w,r,k){S.log.unshift({t:new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),d,c,w,r,k});S.log=S.log.slice(0,8)}
+function tile(id,title,f){const el=$(id);el.className='cam'+(f?(f.ok?' good':' bad'):'');el.innerHTML=title+'<div class="e"'+(f&&f.e.length>4?' style="font-size:15px;line-height:1.5"':'')+'>'+(f?f.e:'–')+'</div><span>'+(f?f.l:'idle')+'</span>'}
+function logs(){tile('c1','CAM 1 · ENTRY',S.cf1);tile('c2','CAM 2 · INSIDE',S.cf2);
+ $('strk').textContent=S.strikes?'· strikes '+S.strikes+'/3':'';
+ $('lg').innerHTML=S.log.length?S.log.map(l=>'<tr><td>'+l.t+'</td><td>'+l.d+'</td><td>'+l.c+'</td><td>'+l.w+'</td><td><span class="res '+(l.r==='APPROVED'?'a':(l.r==='DOOR CLOSED'||l.r==='RETURNED')?'':'f')+'">'+l.r+'</span> '+l.k+'</td></tr>').join(''):'<tr><td colspan="5" class="mute">No events yet</td></tr>'}
+$('col').onclick=()=>{S.f=S.f.map(v=>v>=80?0:v);say('Collector emptied the full bays.');render()};
+window.addEventListener('message',e=>{const d=e.data;if(!d)return;
+ if(d.type==='link'){S.uid=d.uid;S.user=d.name;S.tk=0;S.kg=0;S.strikes=0;S.type=-1;S.linked=true;say('Linked to '+d.name+'. Show your items to Cam 1.');render()}
+ if(d.type==='unlink'){if(S.door)closeDoor('session ended');S.linked=false;S.uid=null;S.user=null;say('Session ended.');render()}});
+setTimeout(()=>post({type:'ready'}),300);
+const sl=ms=>new Promise(r=>setTimeout(r,ms));
+const NAMES=['Aisyah R.','Daniel T.','Mei Ling','Farid H.','Priya S.','Hafiz A.','Siti N.','Kumar V.'];
+async function autoLoop(){
+ await sl(1200+Math.random()*2500);
+ while(true){
+  if(S.f.some(v=>v>=80)){$('col').click();await sl(600)}
+  if(!S.linked){S.user=NAMES[Math.floor(Math.random()*NAMES.length)];$('scan').click();await sl(1800)}
+  const rounds=1+Math.floor(Math.random()*2);
+  for(let r=0;r<rounds&&S.linked;r++){
+   drop(Math.floor(Math.random()*3));await sl(1600);
+   if(!S.door)continue;
+   dropN(2+Math.floor(Math.random()*9),Math.random()<.18?'wrong':'ok');await sl(1500);
+   closeDoor('closed by user');await sl(2300);
+   if(S.ret){$('back').click();await sl(900);closeDoor('closed by user');await sl(2300)}
+  }
+  if(S.linked&&!S.uid){$('end').click()}
+  await sl(2500+Math.random()*3500);
+ }
+}
+render();
+if(MODE==='auto')autoLoop();
+</script>
+</body>
+</html>
