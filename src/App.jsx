@@ -8,6 +8,7 @@ import ResidentView from './views/ResidentView.jsx'
 import ManagementView from './views/ManagementView.jsx'
 import HubsView from './views/HubsView.jsx'
 import HubStatView from './views/HubStatView.jsx'
+import MobileShell from './views/MobileShell.jsx'
 
 const COMMON = (third) => [
   { id: 'profile', label: 'Profile', icon: '👤' },
@@ -69,10 +70,10 @@ function Sidebar({ role, items, active, setActive, onCollapse, onLogout, onSeed,
         </ul>
       </nav>
       <div className="space-y-2 border-t border-slate-200 p-3">
-        {role === 'ops' && (
+        {(
           <>
             <button onClick={onSeed} className="w-full rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50">Load Demo Data</button>
-            <button onClick={onReset} className="w-full rounded-lg bg-white px-3 py-2 text-xs font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-50">Reset ops data</button>
+            <button onClick={onReset} className="w-full rounded-lg bg-white px-3 py-2 text-xs font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-50">{role === 'ops' ? 'Reset ops data' : 'Reset my data'}</button>
           </>
         )}
         <button onClick={onLogout} className="w-full rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-900">Log out</button>
@@ -81,11 +82,25 @@ function Sidebar({ role, items, active, setActive, onCollapse, onLogout, onSeed,
   )
 }
 
+function useNarrow() {
+  const q = '(max-width: 767px)'
+  const [n, setN] = useState(() => window.matchMedia(q).matches)
+  useEffect(() => {
+    const m = window.matchMedia(q)
+    const f = () => setN(m.matches)
+    m.addEventListener('change', f)
+    return () => m.removeEventListener('change', f)
+  }, [])
+  return n
+}
+
 export default function App() {
   const { session, setSession, dispatch } = useStore()
   const profile = useProfile()
   const [active, setActive] = useState('profile')
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [phone, setPhone] = useState(false) // desktop preview of the mobile app
+  const narrow = useNarrow()
   const role = session?.role
   const items = useMemo(() => MENUS[role] || [], [role])
 
@@ -104,6 +119,14 @@ export default function App() {
 
   if (!session || (role !== 'ops' && !profile)) return <AuthPage />
 
+  // User / Tenant get the mobile app layout on phones, or in the phone preview on desktop.
+  if (role !== 'ops' && (narrow || phone)) {
+    const shell = <MobileShell role={role} onLogout={logout} framed={!narrow} onExit={narrow ? null : () => setPhone(false)} />
+    return narrow ? shell : (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 p-4">{shell}</div>
+    )
+  }
+
   let content
   if (role === 'ops') {
     content = active === 'hubs' ? <HubsView /> : active === 'hubstat' ? <HubStatView /> : <ManagementView page={active} />
@@ -116,8 +139,10 @@ export default function App() {
     <div className="flex h-screen overflow-hidden">
       {sidebarOpen && (
         <Sidebar role={role} items={items} active={active} setActive={setActive} onCollapse={() => setSidebarOpen(false)} onLogout={logout}
-          onSeed={() => dispatch({ type: 'SEED', transactions: buildSeedTransactions() })}
-          onReset={() => confirm('Reset township operations data (metrics, ledger, hub stats)? Accounts and hubs are kept.') && dispatch({ type: 'RESET' })} />
+          onSeed={() => dispatch(role === 'ops' ? { type: 'SEED', transactions: buildSeedTransactions() } : { type: 'SEED_ACCOUNT' })}
+          onReset={() => role === 'ops'
+            ? confirm('Reset township operations data (metrics, ledger, hub stats)? Accounts and hubs are kept.') && dispatch({ type: 'RESET' })
+            : confirm('Clear all Green Points, activity, vouchers and fee offsets for this account?') && dispatch({ type: 'RESET_ACCOUNT' })} />
       )}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur">
@@ -128,6 +153,9 @@ export default function App() {
             <h2 className="text-lg font-bold text-slate-900">{title}</h2>
             <p className="truncate text-sm text-slate-500">{sub}</p>
           </div>
+          {role !== 'ops' && (
+            <button onClick={() => setPhone(true)} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-green-700 ring-1 ring-green-300 hover:bg-green-50">📱 Mobile view</button>
+          )}
           {profile && (
             <button onClick={() => setActive('profile')} className="flex items-center gap-2" title="Profile">
               <span className="hidden text-right text-xs sm:block"><span className="block font-semibold text-slate-800">{profile.name}</span><span className="block font-mono text-slate-500">{profile.id}</span></span>

@@ -1,5 +1,6 @@
 import { computeDropoff } from '../lib/engine.js'
 import { VOUCHERS, ACCOUNT_TYPES, initialHubLoads } from '../data/catalog.js'
+import { buildDemoAccount } from '../lib/seed.js'
 
 export const STORAGE_KEY = 'greenloop-state-v3'
 
@@ -139,6 +140,18 @@ export function reducer(state, action) {
         }
       }
       return next
+    }
+
+    // Judging helpers: fill or clear the signed-in user's / tenant's own data.
+    case 'SEED_ACCOUNT': {
+      const u = state.users[who]
+      return u ? updateAcct(state, who, (a) => ({ ...a, ...buildDemoAccount(u.role) })) : state
+    }
+    case 'RESET_ACCOUNT': {
+      const u = state.users[who]
+      if (!u) return state
+      const sessions = Object.fromEntries(Object.entries(state.hubSessions).filter(([, x]) => x.uid !== who))
+      return { ...updateAcct(state, who, () => emptyAccount(roleToAccount(u.role))), hubSessions: sessions }
     }
 
     case 'ADD_HUB':

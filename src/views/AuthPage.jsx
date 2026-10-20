@@ -37,6 +37,21 @@ export default function AuthPage() {
     setSession({ role: u.role, id: u.id })
   }
 
+  // One-tap demo accounts for judging (created once, pre-filled with history).
+  function demo(role) {
+    const email = role === 'tenant' ? 'tenant.demo@greenloop.my' : 'user.demo@greenloop.my'
+    let u = Object.values(state.users).find((x) => x.email === email)
+    if (!u) {
+      const id = nextId(state, role)
+      const name = role === 'tenant' ? 'Demo Café (Mall Tenant)' : 'Aisyah Rahman'
+      const address = role === 'tenant' ? 'Lot G-08, Greenview Mall' : 'A-12-3, Greenview Residence'
+      dispatch({ type: 'REGISTER', id, role, name, address, email, password: 'demo123' })
+      dispatch({ type: 'SEED_ACCOUNT', uid: id })
+      u = { id, role }
+    }
+    setSession({ role: u.role, id: u.id })
+  }
+
   function doRegister(e) {
     e.preventDefault()
     const { role, name, address, email, password, confirm } = reg
@@ -113,6 +128,13 @@ export default function AuthPage() {
                 <button className="w-full rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700">Create</button>
               </form>
             )}
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <p className="mb-2 text-center text-xs text-slate-500">Judging demo: one tap, pre-filled with activity</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => demo('user')} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-green-700 ring-1 ring-green-300 hover:bg-green-50">🙋 Demo User</button>
+                <button onClick={() => demo('tenant')} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-green-700 ring-1 ring-green-300 hover:bg-green-50">🏬 Demo Tenant</button>
+              </div>
+            </div>
           </>
         )}
       </div>

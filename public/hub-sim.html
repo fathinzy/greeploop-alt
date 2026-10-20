@@ -45,6 +45,12 @@ body{margin:0}.wrap{max-width:1100px;margin:0 auto;padding:12px}
 body.auto .main{grid-template-areas:"svg log"}body.auto .ctl{display:none}
 @media(max-width:760px){.main,body.auto .main{grid-template-columns:1fr;grid-template-areas:"svg" "ctl" "log"}}
 .logbox{max-height:340px;overflow:auto}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px;cursor:pointer;font-size:11px;text-align:center;color:var(--ink)}
+.tile:hover{border-color:var(--amb)}.tile svg{width:100%;height:auto;display:block;border-radius:6px}.tile.bad span{color:#ff8a80}
+.vid{position:relative;aspect-ratio:16/9;background:#05080c;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.vid video,.vid canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.vmsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;color:var(--mute);font-size:13px}
+button.go{background:#1f9d55;border-color:#1f9d55;color:#fff;font-weight:600}
 </style>
 </head>
 <body>
@@ -60,12 +66,14 @@ body.auto .main{grid-template-areas:"svg log"}body.auto .ctl{display:none}
   </div>
   <div class="ctl" id="ctl">
    <div class="row"><button class="p" id="scan">📱 Scan QR with phone (demo)</button><button id="end" disabled>End session</button></div>
-   <div class="mute">1 · Show your items to Cam 1 (only that bay's door opens)</div>
-   <div class="row" id="items"></div>
+   <div class="mute">1 · Cam 1: show your item (only that bay's door opens)</div>
+   <div class="row"><button class="p" id="m-photo">🖼 Example photos</button><button id="m-cam">📷 Camera</button></div>
+   <div class="photos" id="photos"></div>
+   <div id="camwrap" style="display:none"><div class="vid"><video id="vid" playsinline muted></video><canvas id="ov"></canvas><div class="vmsg" id="vmsg">📷 Camera off. Press Start camera.</div></div><div class="row"><button id="camgo">Start camera</button></div><div class="mute" id="dets">Point the camera at a bottle or cup. Cans are not in the model: use example photos.</div></div>
    <div class="mute">2 · Put items into the open bay</div>
-   <div class="row"><button id="d1">Drop 1 item</button><button id="d10">Drop 10 items</button><button class="h" id="dw">10 incl. 1 wrong material</button><button id="dclose" disabled>Close door</button><button class="p" id="back" disabled>Take item back</button></div>
+   <div class="row"><button id="d1">Drop 1 item</button><button id="d10">Drop 10 items</button><button id="dclose" disabled>Close door</button><button class="p" id="back" disabled>Take item back</button></div>
    <div class="mute">Try to cheat:</div>
-   <div class="row"><button class="h" id="cs">🪨 Drop a stone</button><button class="h" id="cwtr">💧 Water-filled bottle</button></div>
+   <div class="row"><button class="h" id="dw">10 incl. 1 wrong material</button><button class="h" id="cs">🪨 Drop a stone</button><button class="h" id="cwtr">💧 Water-filled bottle</button></div>
    <div class="cams"><div class="cam" id="c1"></div><div class="cam" id="c2"></div></div>
    <div class="row"><button id="col" disabled>Collector: empty bays over 80%</button></div>
   </div>
@@ -163,12 +171,10 @@ function render(){
  o+='<rect x="8" y="-22" width="24" height="3" rx="1.5" fill="'+(S.conn?'#ffb23e':lk?'#4be08a':'#1c2633')+'"'+(lk||S.conn?' filter="url(#g)"':'')+'/>';
  o+='<text x="20" y="-10" font-size="4.6" font-weight="700" text-anchor="middle" fill="'+(lk?'#4be08a':'#8b98a8')+'">'+(S.conn?'LINKING…':lk?'SESSION LIVE':'READY')+'</text></g>';
  $('s').innerHTML=o;
- $('col').disabled=!full;$('scan').disabled=lk||S.conn;$('end').disabled=!lk||S.door||S.busy;const act=S.door&&!S.busy&&!S.ret;['d1','d10','dw','cs','cwtr'].forEach(k=>$(k).disabled=!act);$('dclose').disabled=!S.door||S.ret;$('back').disabled=!S.ret;logs();
+ $('col').disabled=!full;$('scan').disabled=lk||S.conn;$('end').disabled=!lk||S.door||S.busy;const act=S.door&&!S.busy&&!S.ret;['d1','d10','dw','cs','cwtr'].forEach(k=>$(k).disabled=!act);$('dclose').disabled=!S.door||S.ret;$('dclose').className=(S.door&&!S.ret&&!S.busy&&S.tray.n+S.tray.h.length>0)?'go':'';$('back').disabled=!S.ret;logs();
  phone();
 }
 function phone(){updTop()}
-$('items').innerHTML=IT.map((t,i)=>'<button class="'+(t.human?'h':'')+'" data-i="'+i+'">'+t.e+' '+t.n+'</button>').join('');
-$('items').onclick=ev=>{const b=ev.target.closest('button');if(b)drop(+b.dataset.i)};
 const say=t=>$('log').textContent=t;
 $('scan').onclick=()=>{S.conn=true;say('Phone scanned the QR. Pairing with the bin…');render();
  setTimeout(()=>{S.conn=false;S.linked=true;if(!S.uid)S.user=S.user||'Demo resident';S.tk=0;S.kg=0;S.feed=[];S.strikes=0;S.type=-1;say('Linked. Show your items to Cam 1 and only the matching door will open.');render()},1300)};
@@ -253,6 +259,65 @@ async function autoLoop(){
   if(S.linked&&!S.uid){$('end').click()}
   await sl(2500+Math.random()*3500);
  }
+}
+const ART={"scan-pet": "<svg viewBox=\"0 0 160 160\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"160\" height=\"160\" rx=\"10\" fill=\"#dbeafe\"/><rect x=\"68\" y=\"20\" width=\"24\" height=\"12\" rx=\"3\" fill=\"#60a5fa\" /> <rect x=\"72\" y=\"30\" width=\"16\" height=\"8\" fill=\"#93c5fd\" /> <path d=\"M66 40 q-6 10 -6 24 v56 q0 10 10 10 h20 q10 0 10 -10 v-56 q0 -14 -6 -24 z\" fill=\"#bfdbfe\" stroke=\"#3b82f6\" stroke-width=\"2\" /> <rect x=\"66\" y=\"74\" width=\"28\" height=\"20\" fill=\"#eff6ff\" opacity=\"0.7\" /></svg>", "scan-can": "<svg viewBox=\"0 0 160 160\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"160\" height=\"160\" rx=\"10\" fill=\"#f1f5f9\"/><rect x=\"58\" y=\"34\" width=\"44\" height=\"92\" rx=\"8\" fill=\"#cbd5e1\" stroke=\"#64748b\" stroke-width=\"2\" /> <rect x=\"58\" y=\"34\" width=\"44\" height=\"12\" rx=\"6\" fill=\"#94a3b8\" /> <ellipse cx=\"80\" cy=\"40\" rx=\"18\" ry=\"4\" fill=\"#e2e8f0\" /> <rect x=\"66\" y=\"60\" width=\"28\" height=\"40\" rx=\"4\" fill=\"#ef4444\" opacity=\"0.75\" /></svg>", "scan-carton": "<svg viewBox=\"0 0 160 160\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"160\" height=\"160\" rx=\"10\" fill=\"#fef3c7\"/><path d=\"M60 44 h40 v76 h-40 z\" fill=\"#fde68a\" stroke=\"#f59e0b\" stroke-width=\"2\" /> <path d=\"M60 44 l20 -14 l20 14 z\" fill=\"#fcd34d\" stroke=\"#f59e0b\" stroke-width=\"2\" /> <rect x=\"88\" y=\"30\" width=\"6\" height=\"16\" fill=\"#f59e0b\" /> <rect x=\"68\" y=\"70\" width=\"24\" height=\"30\" fill=\"#fffbeb\" opacity=\"0.8\" /></svg>", "scan-cardboard": "<svg viewBox=\"0 0 160 160\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"160\" height=\"160\" rx=\"10\" fill=\"#fde9d2\"/><path d=\"M40 60 h80 v54 h-80 z\" fill=\"#d9a066\" stroke=\"#b45309\" stroke-width=\"2\" /> <path d=\"M40 60 l20 -14 h80 l-20 14 z\" fill=\"#e8b887\" stroke=\"#b45309\" stroke-width=\"2\" /> <path d=\"M120 60 l20 -14 v54 l-20 14 z\" fill=\"#c98a4b\" stroke=\"#b45309\" stroke-width=\"2\" /> <line x1=\"80\" y1=\"46\" x2=\"80\" y2=\"114\" stroke=\"#b45309\" stroke-width=\"1.5\" opacity=\"0.6\" /></svg>", "scan-ewaste": "<svg viewBox=\"0 0 160 160\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"160\" height=\"160\" rx=\"10\" fill=\"#ede9fe\"/><rect x=\"58\" y=\"28\" width=\"44\" height=\"104\" rx=\"8\" fill=\"#4c1d95\" stroke=\"#8b5cf6\" stroke-width=\"2\" /> <rect x=\"63\" y=\"38\" width=\"34\" height=\"74\" rx=\"2\" fill=\"#a78bfa\" /> <circle cx=\"80\" cy=\"122\" r=\"4\" fill=\"#c4b5fd\" /></svg>", "scan-greasy": "<svg viewBox=\"0 0 160 160\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"160\" height=\"160\" rx=\"10\" fill=\"#fee2e2\"/><rect x=\"42\" y=\"58\" width=\"76\" height=\"40\" rx=\"6\" fill=\"#f8fafc\" stroke=\"#f87171\" stroke-width=\"2\" /> <ellipse cx=\"70\" cy=\"72\" rx=\"10\" ry=\"5\" fill=\"#fbbf24\" opacity=\"0.7\" /> <ellipse cx=\"92\" cy=\"82\" rx=\"7\" ry=\"4\" fill=\"#f59e0b\" opacity=\"0.6\" /> <path d=\"M50 50 h60 v10 h-60 z\" fill=\"#fecaca\" /></svg>", "scan-styro": "<svg viewBox=\"0 0 160 160\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"160\" height=\"160\" rx=\"10\" fill=\"#fee2e2\"/><rect x=\"46\" y=\"54\" width=\"68\" height=\"48\" rx=\"6\" fill=\"#f8fafc\" stroke=\"#cbd5e1\" stroke-width=\"2\" /> <circle cx=\"60\" cy=\"70\" r=\"4\" fill=\"#e2e8f0\" /> <circle cx=\"76\" cy=\"66\" r=\"4\" fill=\"#e2e8f0\" /> <circle cx=\"92\" cy=\"72\" r=\"4\" fill=\"#e2e8f0\" /> <circle cx=\"70\" cy=\"84\" r=\"4\" fill=\"#e2e8f0\" /> <circle cx=\"90\" cy=\"88\" r=\"4\" fill=\"#e2e8f0\" /></svg>", "scan-bag": "<svg viewBox=\"0 0 160 160\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"160\" height=\"160\" rx=\"10\" fill=\"#fee2e2\"/><path d=\"M54 46 q26 -10 52 0 l-6 76 q-20 8 -40 0 z\" fill=\"#e2e8f0\" stroke=\"#94a3b8\" stroke-width=\"2\" opacity=\"0.9\" /> <path d=\"M64 40 q16 -8 32 0\" fill=\"none\" stroke=\"#94a3b8\" stroke-width=\"3\" /></svg>", "scan-mixed": "<svg viewBox=\"0 0 160 160\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"160\" height=\"160\" rx=\"10\" fill=\"#fee2e2\"/><path d=\"M58 40 h44 v88 h-44 z\" fill=\"#fca5a5\" stroke=\"#ef4444\" stroke-width=\"2\" /> <rect x=\"58\" y=\"64\" width=\"44\" height=\"10\" fill=\"#f59e0b\" /> <rect x=\"58\" y=\"86\" width=\"44\" height=\"10\" fill=\"#60a5fa\" /> <rect x=\"58\" y=\"40\" width=\"44\" height=\"12\" fill=\"#cbd5e1\" /></svg>"};
+const TARGETS=[
+ {id:'scan-pet',l:'PET bottle',ok:1,i:0},{id:'scan-can',l:'Aluminium can',ok:1,i:1},{id:'scan-carton',l:'Paper carton',ok:1,i:2},
+ {id:'scan-cardboard',l:'Cardboard box',ok:1,h:1},{id:'scan-ewaste',l:'Small e-waste',ok:1,h:1},
+ {id:'scan-greasy',l:'Greasy food container',ok:0,why:'Food contamination detected. Residue prevents recycling.'},
+ {id:'scan-styro',l:'Polystyrene foam',ok:0,why:'Polystyrene (EPS) is not accepted at this hub.'},
+ {id:'scan-bag',l:'Plastic bag / film',ok:0,why:'Soft plastic film jams sorting and is not accepted.'},
+ {id:'scan-mixed',l:'Mixed-material pouch',ok:0,why:'Multi-layer material cannot be separated.'}];
+$('photos').innerHTML=TARGETS.map((t,i)=>'<div class="tile'+(t.ok?'':' bad')+'" data-i="'+i+'">'+ART[t.id]+'<span>'+(t.ok?'':'\u2717 ')+t.l+'</span></div>').join('');
+$('photos').onclick=ev=>{const e=ev.target.closest('.tile');if(e)cam1(TARGETS[+e.dataset.i],ART[TARGETS[+e.dataset.i].id])};
+// Cam 1 verdict from an example photo or from the live camera
+function cam1(t,art){
+ if(S.busy)return;
+ if(!S.linked){S.alert=true;say('Door locked: scan the QR on the station to start a session first.');render();setTimeout(()=>{S.alert=false;render()},2200);return}
+ if(S.ret){say('Please take the returned item back first.');return}
+ const pic=art?'<span style="display:inline-block;width:64px">'+art+'</span>':t.e;
+ S.cf1={e:pic,l:'analysing '+t.l+'\u2026',ok:1};S.cf2=null;render();
+ setTimeout(()=>{
+  if(!t.ok){S.cf1={e:pic,l:t.l+' \u00b7 not accepted',ok:0};addLog(t.l,'\u2014','\u2014','REJECTED',t.why);say('Cam 1: '+t.l+' is not accepted. '+t.why);render();return}
+  if(t.h){S.cf1={e:pic,l:t.l+' \u00b7 staffed counter',ok:1};S.alert=true;say('Cam 1: '+t.l+' is not an AI-stream item. Take it to the staffed counter; the operator credits it to your linked account.');render();setTimeout(()=>{S.alert=false;render()},2500);return}
+  drop(t.i);
+ },600);
+}
+function setMode(m){$('photos').style.display=m==='photo'?'':'none';$('camwrap').style.display=m==='cam'?'':'none';$('m-photo').className=m==='photo'?'p':'';$('m-cam').className=m==='cam'?'p':'';if(m==='photo')stopCam()}
+$('m-photo').onclick=()=>setMode('photo');$('m-cam').onclick=()=>setMode('cam');
+// Live camera (TensorFlow.js COCO-SSD in the browser; the model needs internet to load)
+let model=null,camStream=null,camTimer=null,streak={c:null,n:0},detBusy=false;
+const COCO={bottle:0,'wine glass':0,cup:2,book:2,'cell phone':'h',remote:'h',keyboard:'h',mouse:'h',laptop:'h'};
+const loadScript=src=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=()=>no(new Error('Could not load the vision model (needs internet).'));document.head.appendChild(e)});
+async function startCam(){
+ $('vmsg').style.display='';$('vmsg').textContent='\u23f3 Loading vision model and camera\u2026';
+ try{
+  if(!model){
+   if(!window.tf)await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js');
+   if(!window.cocoSsd)await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js');
+   model=await cocoSsd.load({base:'lite_mobilenet_v2'});
+  }
+  camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  const v=$('vid');v.srcObject=camStream;await v.play();
+  $('vmsg').style.display='none';$('camgo').textContent='Stop camera';camTimer=setInterval(detect,400);
+ }catch(e){stopCam();$('vmsg').style.display='';$('vmsg').textContent='\u26a0\ufe0f '+(e&&(e.name==='NotAllowedError'||e.name==='SecurityError')?'Camera permission denied.':(e&&e.message)||'Camera not available.')+' Use example photos instead.'}
+}
+function stopCam(){clearInterval(camTimer);camTimer=null;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}$('camgo').textContent='Start camera';const o=$('ov');o.getContext('2d').clearRect(0,0,o.width,o.height);$('vmsg').style.display='';$('vmsg').textContent='\ud83d\udcf7 Camera off. Press Start camera.'}
+$('camgo').onclick=()=>camStream?stopCam():startCam();
+async function detect(){
+ const v=$('vid');if(!model||v.readyState<2||detBusy)return;detBusy=true;
+ let preds=[];try{preds=(await model.detect(v)).filter(p=>p.score>=.55)}catch(e){}
+ detBusy=false;
+ const o=$('ov'),x=o.getContext('2d');o.width=v.videoWidth||o.clientWidth;o.height=v.videoHeight||o.clientHeight;x.clearRect(0,0,o.width,o.height);
+ const list=preds.map(p=>({c:p.class,m:COCO[p.class],s:Math.round(p.score*100),b:p.bbox}));
+ list.forEach(d=>{const col=d.m!==undefined?'#22c55e':'#ef4444',[bx,by,bw,bh]=d.b;x.strokeStyle=col;x.lineWidth=3;x.strokeRect(bx,by,bw,bh);x.fillStyle=col;x.font='14px sans-serif';const lb=d.c+' '+d.s+'%';x.fillRect(bx,Math.max(0,by-18),x.measureText(lb).width+8,18);x.fillStyle='#fff';x.fillText(lb,bx+4,Math.max(12,by-5))});
+ $('dets').innerHTML=list.length?list.map(d=>(d.m!==undefined?'\u2705 ':'\u274c ')+d.c+' ('+d.s+'%)'+(d.m!==undefined?'':' not accepted')).join(' \u00b7 '):'Point the camera at a bottle or cup. Cans are not in the model: use example photos.';
+ if(S.busy||S.door||S.ret)return;
+ const best=list.find(d=>d.m!==undefined);
+ if(!best){streak={c:null,n:0};return}
+ if(!S.linked){$('dets').innerHTML+='<br>Scan the QR first to unlock the door.';return}
+ streak=streak.c===best.c?{c:best.c,n:streak.n+1}:{c:best.c,n:1};
+ if(streak.n>=3){streak={c:null,n:0};best.m==='h'?cam1({l:'Small e-waste',ok:1,h:1,e:'\ud83d\udcf1'}):cam1({l:IT[best.m].n,ok:1,i:best.m,e:IT[best.m].e})}
 }
 render();
 if(MODE==='auto')autoLoop();

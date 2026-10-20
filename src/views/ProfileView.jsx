@@ -105,6 +105,14 @@ export default function ProfileView() {
         )}
       </Card>
       <GPBalance balance={acct.tokenBalance} />
+      <Card>
+        <CardHeader title="Demo tools" subtitle="For judging: fill this account with history, or start clean" />
+        <div className="flex flex-wrap gap-2 px-5 py-4">
+          <button onClick={() => dispatch({ type: 'SEED_ACCOUNT' })} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">Load demo data</button>
+          <button onClick={() => confirm('Clear all Green Points, activity, vouchers and fee offsets for this account?') && dispatch({ type: 'RESET_ACCOUNT' })}
+            className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-50">Reset my data</button>
+        </div>
+      </Card>
     </div>
   )
 }

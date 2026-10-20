@@ -78,7 +78,7 @@ function HubDetail({ hub, onBack }) {
         </div>
       </div>
       <Card className="overflow-hidden">
-        <iframe ref={frame} title={hub.name} src={`/hub-sim.html?${q}`} onLoad={sendLink}
+        <iframe ref={frame} allow="camera" title={hub.name} src={`/hub-sim.html?${q}`} onLoad={sendLink}
           style={{ width: '100%', height: hub.mode === 'manual' ? 1080 : 760, border: 0, background: '#0d1117' }} />
       </Card>
       <p className="text-xs text-slate-500">
